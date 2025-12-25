@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedded Studio Pro - Ultimate UI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        /* --- 全局变量定义 --- */
+        :root {
+            --bg-app: #0f1115;       /* APP 背景 */
+            --bg-panel: #18181b;     /* 面板背景 */
+            --bg-pcb: #18181b;       /* PCB 本体黑 */
+            
+            --border-subtle: #27272a;
+            --border-highlight: #3f3f46;
+
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            
+            --accent: #6366f1;       /* 交互高亮色 */
+            
+            /* 连线颜色定义 */
+            --wire-pwr: #f87171;     /* 3.3V/5V */
+            --wire-gnd: #9ca3af;     /* GND */
+            --wire-sig: #34d399;     /* 信号线 */
+            --wire-comm: #60a5fa;    /* 通信线 */
+        }
+
+        body {
+            background-color: var(--bg-app);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* --- 1. 顶部导航栏 --- */
+        .navbar-area {
+            height: 56px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 100;
+        }
+        .app-brand {
+            display: flex; align-items: center; gap: 12px;
+            font-weight: 700; font-size: 1.1rem; letter-spacing: -0.5px;
+        }
+        .logo-box {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent), #818cf8);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            color: #fff; box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+        .btn-primary-glow {
+            background: var(--accent); color: white; border: none;
+            padding: 6px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 500;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            transition: all 0.2s;
+        }
+        .btn-primary-glow:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99, 102, 241, 0.6); }
+
+        /* --- 主布局 --- */
+        .layout-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* --- 2. 左侧组件库 --- */
+        .sidebar-left {
+            width: 260px; background: var(--bg-panel);
+            border-right: 1px solid var(--border-subtle);
+            display: flex; flex-direction: column; padding: 20px 0; z-index: 50;
+        }
+        .sidebar-title {
+            padding: 0 20px 10px; font-size: 0.7rem; font-weight: 700;
+            text-transform: uppercase; color: #52525b; letter-spacing: 1px;
+        }
+        .comp-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 15px; margin: 0 10px 8px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid transparent; border-radius: 8px;
+            cursor: grab; transition: all 0.2s;
+        }
+        .comp-card:hover {
+            background: rgba(255,255,255,0.05); border-color: var(--border-highlight);
+        }
+        .comp-icon { font-size: 1.2rem; color: var(--text-muted); width: 24px; text-align: center; }
+        .comp-info h6 { margin: 0; font-size: 0.85rem; font-weight: 500; }
+        .comp-info span { font-size: 0.7rem; color: #71717a; }
+
+        /* --- 3. 画布区域 --- */
+        .canvas-area {
+            flex: 1; position: relative;
+            background-color: var(--bg-app);
+            /* 点阵网格 */
+            background-image: radial-gradient(#27272a 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+            overflow: hidden;
+        }
+
+        /* SVG 连线层 */
+        #wire-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+        }
+        .wire {
+            fill: none; stroke-width: 3; stroke-linecap: round; opacity: 0.9;
+            transition: stroke-width 0.2s; pointer-events: auto; cursor: pointer;
+        }
+        .wire:hover { stroke-width: 5; filter: brightness(1.4); }
+        
+        /* 霓虹光效 */
+        .wire.pwr { stroke: var(--wire-pwr); filter: drop-shadow(0 0 3px rgba(248, 113, 113, 0.4)); }
+        .wire.gnd { stroke: var(--wire-gnd); }
+        .wire.sig { stroke: var(--wire-sig); filter: drop-shadow(0 0 3px rgba(52, 211, 153, 0.4)); }
+        .wire.comm { stroke: var(--wire-comm); filter: drop-shadow(0 0 3px rgba(96, 165, 250, 0.4)); }
+
+        /* --- 4. PCB 核心板 (High Fidelity) --- */
+        .board-node {
+            position: absolute;
+            width: 260px;
+            background: var(--bg-pcb); 
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            /* PCB 物理阴影 + 悬浮阴影 */
+            box-shadow: 
+                inset 0 0 0 1px rgba(255,255,255,0.05),
+                0 4px 6px -1px rgba(0, 0, 0, 0.5), 
+                0 20px 40px -5px rgba(0, 0, 0, 0.6); 
+            z-index: 20;
+            display: flex; flex-direction: column;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .board-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 25px 50px -5px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* PCB 顶部丝印区 */
+        .board-header {
+            height: 32px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-radius: 5px 5px 0 0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 12px; cursor: grab;
+        }
+        .board-header:active { cursor: grabbing; background: rgba(255,255,255,0.05); }
+        .board-title { 
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700; 
+            color: #d4d4d8; letter-spacing: 1px; opacity: 0.9;
+        }
+
+        .board-body {
+            padding: 20px 15px; position: relative;
+            display: flex; justify-content: space-between; min-height: 180px;
+        }
+
+        /* --- 装饰细节 (Details) --- */
+        /* 安装孔 */
+        .hole {
+            position: absolute; width: 8px; height: 8px;
+            background: #09090b; border: 2px solid #52525b; border-radius: 50%;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .hole.tl { top: 6px; left: 6px; } .hole.tr { top: 6px; right: 6px; }
+        .hole.bl { bottom: 6px; left: 6px; } .hole.br { bottom: 6px; right: 6px; }
+
+        /* 芯片 */
+        .chip-body {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 70px; height: 70px; background: #18181b; border: 1px solid #000;
+            border-radius: 2px;
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.8), inset 1px 1px 2px rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center; z-index: 1;
+        }
+        .chip-legs {
+            position: absolute; inset: -3px; border: 2px dashed #52525b; opacity: 0.5; z-index: 0;
+        }
+        .chip-text {
+            font-family: monospace; font-size: 0.65rem; color: #71717a;
+            text-align: center; line-height: 1.2; transform: rotate(-45deg);
+        }
+        .chip-dot {
+            position: absolute; top: 6px; left: 6px; width: 4px; height: 4px;
+            background: #3f3f46; border-radius: 50%; box-shadow: inset 1px 1px 1px #000;
+        }
+        
+        /* 晶振 */
+        .crystal {
+            position: absolute; top: 45px; left: 50%; transform: translateX(-50%);
+            width: 14px; height: 24px;
+            background: linear-gradient(135deg, #d4d4d8 0%, #a1a1aa 100%);
+            border-radius: 8px; border: 1px solid #52525b;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.6); z-index: 2;
+        }
+
+        /* --- 引脚样式 (Pins) --- */
+        .pin-col { display: flex; flex-direction: column; gap: 14px; z-index: 2; }
+        .pin-item {
+            display: flex; align-items: center; gap: 10px; height: 16px;
+            cursor: crosshair; transition: all 0.2s;
+        }
+        .pin-label {
+            font-family: 'Consolas', monospace; font-size: 0.65rem; color: #a1a1aa;
+            letter-spacing: 0.5px; transition: color 0.2s;
+        }
+        /* 镀金焊盘 */
+        .pin-pad {
+            width: 14px; height: 14px;
+            background: radial-gradient(circle, #000 20%, #eab308 30%, #a16207 100%);
+            border: 1px solid #ca8a04; border-radius: 50%;
+            box-shadow: 0 0 2px rgba(0,0,0,0.8);
+            position: relative; transition: all 0.2s;
+        }
+        /* 焊盘高亮反馈 */
+        .pin-item:hover .pin-pad {
+            background: #fff; border-color: #fff;
+            box-shadow: 0 0 8px var(--accent), 0 0 15px var(--accent);
+            transform: scale(1.1);
+        }
+        .pin-item:hover .pin-label { color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+
+        /* 功能色区分 */
+        .pin-pad.pwr { border-color: #ef4444; background: radial-gradient(circle, #000 20%, #ef4444 30%, #991b1b 100%); }
+        .pin-pad.gnd { border-color: #9ca3af; background: radial-gradient(circle, #000 20%, #9ca3af 30%, #4b5563 100%); }
+        .pin-pad.comm { border-color: #3b82f6; background: radial-gradient(circle, #000 20%, #3b82f6 30%, #1e40af 100%); }
+        
+        .pin-item.right { flex-direction: row-reverse; }
+        
+        /* 传感器卡片微调 */
+        .board-node.sensor { width: 180px; }
+        .board-node.sensor .board-header { background: rgba(59, 130, 246, 0.08); }
+        .board-node.sensor .board-title { color: #60a5fa; }
+
+        /* --- 5. 右侧代码区 --- */
+        .sidebar-right {
+            width: 300px; background: var(--bg-panel);
+            border-left: 1px solid var(--border-subtle);
+            display: flex; flex-direction: column;
+        }
+        .prop-panel { padding: 20px; border-bottom: 1px solid var(--border-subtle); }
+        .form-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; }
+        .form-control-dark {
+            background: #0f1115; border: 1px solid #27272a; color: var(--text-main);
+            font-size: 0.85rem; padding: 8px 12px; border-radius: 6px; width: 100%;
+        }
+        .code-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #0f1115; }
+        .code-header {
+            padding: 8px 16px; background: rgba(255,255,255,0.02);
+            font-size: 0.75rem; color: var(--text-muted);
+            border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between;
+        }
+        .code-content {
+            flex: 1; padding: 16px; overflow: auto;
+            font-family: 'Consolas', monospace; font-size: 0.8rem; line-height: 1.6; color: #d4d4d8;
+        }
+        .hljs-kw { color: #c678dd; } .hljs-fn { color: #61afef; } .hljs-str { color: #98c379; } .hljs-com { color: #5c6370; }
+
+    </style>
+</head>
+<body>
+
+    <header class="navbar-area">
+        <div class="app-brand">
+            <div class="logo-box"><i class="bi bi-cpu-fill"></i></div>
+            <span>Embedded Studio <span style="font-weight:300; opacity:0.6; font-size:0.9em">Pro</span></span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-sm text-secondary"><i class="bi bi-grid-3x3"></i> View</button>
+            <button class="btn btn-sm text-secondary"><i class="bi bi-gear-fill"></i> Settings</button>
+            <button class="btn-primary-glow"><i class="bi bi-play-fill me-1"></i> Generate Code</button>
+        </div>
+    </header>
+
+    <div class="layout-container">
+        <div class="sidebar-left">
+            <div class="sidebar-title">Core Boards</div>
+            <div class="comp-card">
+                <div class="comp-icon text-primary"><i class="bi bi-Motherboard"></i></div>
+                <div class="comp-info"><h6>STM32F103</h6><span>ARM Cortex-M3</span></div>
+            </div>
+            <div class="comp-card">
+                <div class="comp-icon text-success"><i class="bi bi-wifi"></i></div>
+                <div class="comp-info"><h6>ESP32-S3</h6><span>WiFi + BT</span></div>
+            </div>
+            
+            <div class="sidebar-title mt-3">Sensors</div>
+            <div class="comp-card">
+                <div class="comp-icon text-warning"><i class="bi bi-thermometer-sun"></i></div>
+                <div class="comp-info"><h6>DHT11</h6><span>Temp & Humid</span></div>
+            </div>
+            <div class="comp-card">
+                <div class="comp-icon text-info"><i class="bi bi-display"></i></div>
+                <div class="comp-info"><h6>OLED 0.96"</h6><span>I2C Display</span></div>
+            </div>
+        </div>
+
+        <div class="canvas-area" id="canvas">
+            
+            <svg id="wire-layer">
+                <path id="wire1" class="wire pwr"></path>
+                <path id="wire2" class="wire gnd"></path>
+                <path id="wire3" class="wire comm"></path>
+                <path id="wire4" class="wire sig"></path>
+            </svg>
+
+            <div class="board-node" id="board-mcu" style="top: 100px; left: 120px;">
+                <div class="board-header">
+                    <span class="board-title">STM32_CORE_V1</span>
+                    <i class="bi bi-three-dots-vertical text-secondary"></i>
+                </div>
+                
+                <div class="board-body">
+                    <div class="hole tl"></div><div class="hole tr"></div>
+                    <div class="hole bl"></div><div class="hole br"></div>
+                    <div class="crystal"></div>
+                    <div class="chip-body">
+                        <div class="chip-legs"></div>
+                        <div class="chip-dot"></div>
+                        <div class="chip-text">ARM<br>STM32<br>F103</div>
+                    </div>
+
+                    <div class="pin-col">
+                        <div class="pin-item"><div class="pin-pad"></div><span class="pin-label">RST</span></div>
+                        <div class="pin-item"><div class="pin-pad pwr"></div><span class="pin-label">VBAT</span></div>
+                        <div class="pin-item"><div class="pin-pad comm"></div><span class="pin-label">PA0</span></div>
+                        <div class="pin-item"><div class="pin-pad comm"></div><span class="pin-label">PA1</span></div>
+                    </div>
+
+                    <div class="pin-col">
+                        <div class="pin-item right">
+                            <div class="pin-pad pwr" id="pin-3v3"></div><span class="pin-label">3V3</span>
+                        </div>
+                        <div class="pin-item right">
+                            <div class="pin-pad gnd" id="pin-gnd"></div><span class="pin-label">GND</span>
+                        </div>
+                        <div class="pin-item right">
+                            <div class="pin-pad comm" id="pin-scl"></div><span class="pin-label">PB6</span>
+                        </div>
+                        <div class="pin-item right">
+                            <div class="pin-pad sig" id="pin-sda"></div><span class="pin-label">PB7</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="board-node sensor" id="board-sensor" style="top: 220px; left: 550px;">
+                <div class="board-header">
+                    <span class="board-title">MODULE_OLED</span>
+                </div>
+                <div class="board-body" style="min-height: 140px; justify-content: center;">
+                    <div class="hole tl"></div><div class="hole tr"></div>
+                    <div class="hole bl"></div><div class="hole br"></div>
+
+                    <div style="position:absolute; top:45px; width:120px; height:60px; background:#000; border:2px solid #3f3f46; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.8rem; box-shadow:inset 0 0 10px rgba(255,255,255,0.1);">
+                        <i class="bi bi-terminal me-2 text-success"></i> Ready
+                    </div>
+
+                    <div style="position:absolute; bottom:15px; display:flex; gap:16px;">
+                        <div class="d-flex flex-column align-items-center gap-1 pin-item">
+                            <div class="pin-pad pwr" id="pin-vcc"></div><span class="pin-label">VCC</span>
+                        </div>
+                        <div class="d-flex flex-column align-items-center gap-1 pin-item">
+                            <div class="pin-pad gnd" id="pin-gnd-s"></div><span class="pin-label">GND</span>
+                        </div>
+                        <div class="d-flex flex-column align-items-center gap-1 pin-item">
+                            <div class="pin-pad comm" id="pin-scl-s"></div><span class="pin-label">SCL</span>
+                        </div>
+                        <div class="d-flex flex-column align-items-center gap-1 pin-item">
+                            <div class="pin-pad sig" id="pin-sda-s"></div><span class="pin-label">SDA</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); padding:8px 16px; border-radius:20px; font-size:0.8rem; color:#71717a; pointer-events:none; border:1px solid #27272a;">
+                <i class="bi bi-mouse me-1"></i> Drag boards to rearrange layout
+            </div>
+        </div>
+
+        <div class="sidebar-right">
+            <div class="prop-panel">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-sliders2 text-accent" style="color:var(--accent)"></i>
+                    <span class="fw-bold small text-white">PROPERTIES</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Instance Name</label>
+                    <input type="text" class="form-control-dark" value="OLED_Display_1">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Protocol</label>
+                    <select class="form-control-dark">
+                        <option>I2C (Hardware)</option>
+                        <option>SPI (Software)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="code-area">
+                <div class="code-header">
+                    <span>main.c</span>
+                    <i class="bi bi-clipboard text-secondary cursor-pointer"></i>
+                </div>
+                <div class="code-content">
+<span class="hljs-com">// Hardware Initialization</span>
+<span class="hljs-kw">void</span> <span class="hljs-fn">System_Init</span>() {
+  
+  <span class="hljs-com">/* Power Config */</span>
+  <span class="hljs-com">// VCC -> 3.3V_OUT</span>
+  <span class="hljs-com">// GND -> Common Ground</span>
+
+  <span class="hljs-com">/* I2C1 Init */</span>
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  
+  <span class="hljs-com">// PB6 -> SCL (Clock)</span>
+  <span class="hljs-com">// PB7 -> SDA (Data)</span>
+  <span class="hljs-kw">if</span> (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+    <span class="hljs-fn">Error_Handler</span>();
+  }
+}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取连线元素
+        const wire1 = document.getElementById('wire1');
+        const wire2 = document.getElementById('wire2');
+        const wire3 = document.getElementById('wire3');
+        const wire4 = document.getElementById('wire4');
+        
+        // 拖拽状态
+        let activeBoard = null;
+        let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+        // 初始化：绘制一次连线
+        requestAnimationFrame(updateAllWires);
+
+        // 绑定拖拽事件到所有的 board-header
+        document.querySelectorAll('.board-header').forEach(header => {
+            header.addEventListener('mousedown', dragStart);
+        });
+
+        function dragStart(e) {
+            activeBoard = e.target.closest('.board-node');
+            startX = e.clientX;
+            startY = e.clientY;
+            initialLeft = activeBoard.offsetLeft;
+            initialTop = activeBoard.offsetTop;
+
+            document.addEventListener('mousemove', dragMove);
+            document.addEventListener('mouseup', dragEnd);
+            
+            // 拖拽时提升层级，改变光标
+            activeBoard.style.zIndex = 100;
+            activeBoard.style.cursor = 'grabbing';
+            document.body.style.cursor = 'grabbing';
+        }
+
+        function dragMove(e) {
+            if (!activeBoard) return;
+            e.preventDefault();
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            activeBoard.style.left = `${initialLeft + dx}px`;
+            activeBoard.style.top = `${initialTop + dy}px`;
+
+            // 实时更新连线
+            updateAllWires();
+        }
+
+        function dragEnd() {
+            if(activeBoard) {
+                activeBoard.style.zIndex = 20;
+                activeBoard.style.cursor = 'default';
+            }
+            activeBoard = null;
+            document.body.style.cursor = 'default';
+            document.removeEventListener('mousemove', dragMove);
+            document.removeEventListener('mouseup', dragEnd);
+        }
+
+        // 核心连线算法：绘制平滑贝塞尔曲线
+        function drawWire(svgPath, elId1, elId2) {
+            const el1 = document.getElementById(elId1);
+            const el2 = document.getElementById(elId2);
+            if(!el1 || !el2) return;
+
+            // 获取引脚中心点坐标
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+
+            // 坐标修正 (+7 是因为焊盘宽14px，取中心)
+            const x1 = rect1.left - canvasRect.left + 7;
+            const y1 = rect1.top - canvasRect.top + 7;
+            const x2 = rect2.left - canvasRect.left + 7;
+            const y2 = rect2.top - canvasRect.top + 7;
+
+            // 计算控制点：根据距离动态调整弯曲程度
+            const dist = Math.abs(x2 - x1);
+            // 控制点偏移量：至少60px，距离越远弯曲越自然
+            const controlOffset = Math.max(dist * 0.5, 60);
+
+            // 生成路径数据 (C = Cubic Bezier)
+            // 假设引脚都在板子右侧或左侧，这里做一个通用的S型曲线逻辑
+            // 如果想更智能，可以判断引脚是在板子的哪一侧
+            const d = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+            
+            svgPath.setAttribute('d', d);
+        }
+
+        function updateAllWires() {
+            // 定义连接关系： STM32 -> OLED
+            drawWire(wire1, 'pin-3v3', 'pin-vcc');    // 3.3V -> VCC
+            drawWire(wire2, 'pin-gnd', 'pin-gnd-s');  // GND -> GND
+            drawWire(wire3, 'pin-scl', 'pin-scl-s');  // PB6 -> SCL
+            drawWire(wire4, 'pin-sda', 'pin-sda-s');  // PB7 -> SDA
+        }
+
+        // 窗口大小改变时重绘
+        window.addEventListener('resize', updateAllWires);
+    </script>
+</body>
+</html>

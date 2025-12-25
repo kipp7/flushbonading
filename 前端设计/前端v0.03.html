@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embedded Studio Pro - 工程开发版</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;       /* VS Code 风格深色背景 */
+            --bg-panel: #252526;      /* 侧边栏背景 */
+            --bg-header: #333333;     /* 顶部栏 */
+            --border-color: #454545;  /* 边框 */
+            --accent: #007acc;        /* VS Code 蓝 */
+            --text-main: #cccccc;
+            --text-bright: #ffffff;
+            
+            /* 引脚颜色定义 */
+            --pin-pwr: #ff6b6b;       /* 3.3V/5V */
+            --pin-gnd: #868e96;       /* GND */
+            --pin-adc: #fab005;       /* 模拟 */
+            --pin-comm: #51cf66;      /* 通信 (I2C/UART) */
+            --pin-gpio: #748ffc;      /* 普通IO */
+        }
+
+        * { box-sizing: border-box; user-select: none; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', 'Consolas', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 顶部工具栏 --- */
+        .toolbar {
+            height: 40px;
+            background: var(--bg-header);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 15px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+        }
+        .tool-btn {
+            background: transparent; border: none; color: var(--text-main);
+            padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tool-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .tool-btn.active { background: var(--accent); color: #fff; }
+        .divider { width: 1px; height: 20px; background: var(--border-color); }
+
+        /* --- 主布局 --- */
+        .workspace { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+        /* 左侧组件库 */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            z-index: 50;
+        }
+        .panel-header {
+            padding: 10px 15px; font-size: 0.75rem; font-weight: bold; 
+            text-transform: uppercase; color: #888; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .comp-item {
+            padding: 10px 15px; display: flex; align-items: center; gap: 10px;
+            cursor: grab; border-bottom: 1px solid transparent;
+        }
+        .comp-item:hover { background: #2a2d2e; border-color: #383838; }
+        .comp-icon { width: 24px; text-align: center; font-size: 1.1rem; }
+
+        /* --- 核心画布 --- */
+        .viewport {
+            flex: 1; position: relative; overflow: hidden;
+            background-color: #1e1e1e;
+            cursor: default;
+        }
+        
+        /* 无限网格层 */
+        .canvas-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform-origin: 0 0; /* 用于缩放 */
+            /* 专业的点阵网格 */
+            background-image: radial-gradient(#454545 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* SVG 连线层 */
+        svg.connections {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: visible; pointer-events: none; z-index: 10;
+        }
+        .wire-path {
+            fill: none; stroke: #a0a0a0; stroke-width: 2; stroke-linecap: round;
+            pointer-events: stroke; cursor: pointer; transition: stroke-width 0.1s;
+        }
+        .wire-path:hover { stroke-width: 4; stroke: #fff; }
+        .wire-path.selected { stroke: var(--accent); stroke-width: 3; }
+        
+        /* 正在绘制的虚线 */
+        .wire-ghost {
+            fill: none; stroke: var(--accent); stroke-width: 2; 
+            stroke-dasharray: 5,5; opacity: 0.8; pointer-events: none;
+        }
+
+        /* --- 电路板组件 --- */
+        .node {
+            position: absolute;
+            background: #252526;
+            border: 1px solid #454545;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            min-width: 140px;
+            z-index: 20;
+            display: flex; flex-direction: column;
+        }
+        .node.selected { border: 1px solid var(--accent); box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3); }
+        
+        .node-header {
+            padding: 6px 10px; background: #333; color: #fff; font-size: 0.8rem; font-weight: 600;
+            cursor: grab; border-radius: 3px 3px 0 0; display: flex; justify-content: space-between;
+        }
+        .node-header:active { cursor: grabbing; }
+
+        .node-body { padding: 10px 0; position: relative; }
+
+        /* 引脚样式 */
+        .pin-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 4px 0; position: relative; height: 24px;
+        }
+        .pin-label { font-size: 0.75rem; color: #aaa; padding: 0 8px; font-family: 'Consolas', monospace; pointer-events: none; }
+        
+        /* 引脚触点 */
+        .pin-point {
+            width: 12px; height: 12px; background: #333; border: 2px solid #666;
+            border-radius: 50%; cursor: crosshair; transition: all 0.1s;
+            position: absolute; top: 6px;
+        }
+        .pin-point.left { left: -6px; }
+        .pin-point.right { right: -6px; }
+        
+        .pin-point:hover { border-color: #fff; transform: scale(1.2); background: var(--accent); }
+        .pin-point.connected { background: #666; }
+
+        /* --- 右侧属性/代码栏 --- */
+        .inspector {
+            width: 300px;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            z-index: 50;
+        }
+        .code-editor {
+            flex: 1; background: #1e1e1e; color: #d4d4d4; 
+            font-family: 'Consolas', monospace; font-size: 0.8rem;
+            padding: 10px; border: none; resize: none; outline: none;
+            line-height: 1.5;
+        }
+        .status-bar {
+            height: 25px; background: var(--accent); color: #fff;
+            font-size: 0.75rem; display: flex; align-items: center; padding: 0 10px;
+        }
+
+        /* --- 悬浮提示 --- */
+        .canvas-controls {
+            position: absolute; bottom: 20px; left: 20px;
+            background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px;
+            display: flex; gap: 5px; pointer-events: all;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <div style="font-weight:700; color: #fff; margin-right: 10px;">Embedded Studio <span style="color:var(--accent)">Pro</span></div>
+        <div class="divider"></div>
+        <button class="tool-btn" id="btn-reset" title="重置视角"><i class="bi bi-arrows-move"></i></button>
+        <button class="tool-btn" id="btn-clear" title="清空画布"><i class="bi bi-trash"></i></button>
+        <div class="divider"></div>
+        <div class="small text-secondary" id="coords">X: 0, Y: 0</div>
+    </div>
+
+    <div class="workspace">
+        <div class="sidebar">
+            <div class="panel-header">Microcontrollers</div>
+            <div class="comp-item" draggable="true" data-type="stm32">
+                <div class="comp-icon" style="color:#007acc"><i class="bi bi-cpu"></i></div>
+                <div>STM32F103C8</div>
+            </div>
+            <div class="comp-item" draggable="true" data-type="esp32">
+                <div class="comp-icon" style="color:#4caf50"><i class="bi bi-wifi"></i></div>
+                <div>ESP32-WROOM</div>
+            </div>
+
+            <div class="panel-header" style="margin-top:10px">Sensors & Modules</div>
+            <div class="comp-item" draggable="true" data-type="oled">
+                <div class="comp-icon" style="color:#ff9800"><i class="bi bi-display"></i></div>
+                <div>OLED 0.96" I2C</div>
+            </div>
+            <div class="comp-item" draggable="true" data-type="dht11">
+                <div class="comp-icon" style="color:#2196f3"><i class="bi bi-thermometer-half"></i></div>
+                <div>DHT11 Sensor</div>
+            </div>
+            <div class="comp-item" draggable="true" data-type="led">
+                <div class="comp-icon" style="color:#e91e63"><i class="bi bi-lightbulb"></i></div>
+                <div>LED Module</div>
+            </div>
+        </div>
+
+        <div class="viewport" id="viewport">
+            <div class="canvas-layer" id="canvas">
+                <svg class="connections" id="svg-layer">
+                    </svg>
+                <svg class="connections" style="z-index: 100;">
+                    <path id="ghost-wire" class="wire-ghost" d="" style="display:none"></path>
+                </svg>
+                
+                <div id="node-layer"></div>
+            </div>
+            
+            <div class="canvas-controls">
+                <button class="tool-btn text-white" onclick="zoom(0.1)"><i class="bi bi-plus-lg"></i></button>
+                <button class="tool-btn text-white" onclick="zoom(-0.1)"><i class="bi bi-dash-lg"></i></button>
+            </div>
+        </div>
+
+        <div class="inspector">
+            <div class="panel-header">Config.h Preview</div>
+            <textarea class="code-editor" id="code-preview" readonly>
+// Generated by Embedded Studio
+// Drag components and connect pins to generate code...
+            </textarea>
+            <div class="status-bar" id="status-bar">Ready</div>
+        </div>
+    </div>
+
+<script>
+    // --- 全局状态 ---
+    const state = {
+        scale: 1,
+        panning: false,
+        panStart: {x:0, y:0},
+        offset: {x:0, y:0},
+        wiring: false,
+        startPin: null, // {id, nodeId, type, x, y}
+        components: [],
+        connections: [], // {from: pinId, to: pinId}
+        idCounter: 0
+    };
+
+    // --- DOM 元素 ---
+    const viewport = document.getElementById('viewport');
+    const canvas = document.getElementById('canvas');
+    const nodeLayer = document.getElementById('node-layer');
+    const svgLayer = document.getElementById('svg-layer');
+    const ghostWire = document.getElementById('ghost-wire');
+    const codePreview = document.getElementById('code-preview');
+    const statusBar = document.getElementById('status-bar');
+
+    // --- 组件定义 (简单工厂) ---
+    const ComponentLib = {
+        stm32: {
+            name: "STM32F103",
+            pins: [
+                {id: '3v3', name: '3.3V', type: 'pwr', side: 'left'},
+                {id: 'gnd', name: 'GND', type: 'gnd', side: 'left'},
+                {id: 'pa0', name: 'PA0', type: 'adc', side: 'right'},
+                {id: 'pa1', name: 'PA1', type: 'adc', side: 'right'},
+                {id: 'pb6', name: 'PB6(SCL)', type: 'comm', side: 'right'},
+                {id: 'pb7', name: 'PB7(SDA)', type: 'comm', side: 'right'},
+            ]
+        },
+        esp32: {
+            name: "ESP32",
+            pins: [
+                {id: 'vin', name: 'VIN', type: 'pwr', side: 'left'},
+                {id: 'gnd', name: 'GND', type: 'gnd', side: 'left'},
+                {id: 'd21', name: 'D21(SDA)', type: 'comm', side: 'right'},
+                {id: 'd22', name: 'D22(SCL)', type: 'comm', side: 'right'},
+            ]
+        },
+        oled: {
+            name: "OLED Display",
+            pins: [
+                {id: 'vcc', name: 'VCC', type: 'pwr', side: 'left'},
+                {id: 'gnd', name: 'GND', type: 'gnd', side: 'left'},
+                {id: 'scl', name: 'SCL', type: 'comm', side: 'left'},
+                {id: 'sda', name: 'SDA', type: 'comm', side: 'left'},
+            ]
+        },
+        dht11: {
+            name: "DHT11",
+            pins: [
+                {id: 'vcc', name: 'VCC', type: 'pwr', side: 'left'},
+                {id: 'data', name: 'DATA', type: 'gpio', side: 'left'},
+                {id: 'gnd', name: 'GND', type: 'gnd', side: 'left'},
+            ]
+        },
+        led: {
+            name: "LED",
+            pins: [
+                {id: 'anode', name: 'Anode', type: 'gpio', side: 'left'},
+                {id: 'gnd', name: 'GND', type: 'gnd', side: 'left'},
+            ]
+        }
+    };
+
+    // --- 核心逻辑：创建组件 ---
+    function createComponent(type, x, y) {
+        const template = ComponentLib[type];
+        if(!template) return;
+
+        const id = `node_${state.idCounter++}`;
+        const el = document.createElement('div');
+        el.className = 'node';
+        el.id = id;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.dataset.name = template.name;
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'node-header';
+        header.innerHTML = `<span>${template.name}</span> <i class="bi bi-x" onclick="removeNode('${id}')" style="cursor:pointer"></i>`;
+        el.appendChild(header);
+
+        // Body & Pins
+        const body = document.createElement('div');
+        body.className = 'node-body';
+        
+        template.pins.forEach(p => {
+            const pinRow = document.createElement('div');
+            pinRow.className = 'pin-row';
+            
+            // 颜色
+            let color = '#ccc';
+            if(p.type === 'pwr') color = 'var(--pin-pwr)';
+            if(p.type === 'gnd') color = 'var(--pin-gnd)';
+            if(p.type === 'comm') color = 'var(--pin-comm)';
+
+            const point = document.createElement('div');
+            point.className = `pin-point ${p.side}`;
+            point.style.borderColor = color;
+            point.dataset.pinId = `${id}_${p.id}`; // 全局唯一引脚ID
+            point.dataset.type = p.type;
+            point.dataset.nodeName = template.name;
+            point.dataset.pinName = p.name;
+            
+            // 绑定连线事件
+            point.addEventListener('mousedown', (e) => startWiring(e, point));
+            point.addEventListener('mouseup', (e) => endWiring(e, point));
+
+            const label = document.createElement('div');
+            label.className = 'pin-label';
+            label.innerText = p.name;
+
+            if(p.side === 'left') {
+                pinRow.appendChild(point);
+                pinRow.appendChild(label);
+                label.style.textAlign = 'left';
+            } else {
+                pinRow.appendChild(label);
+                pinRow.appendChild(point);
+                label.style.textAlign = 'right';
+            }
+            body.appendChild(pinRow);
+        });
+
+        el.appendChild(body);
+        nodeLayer.appendChild(el);
+        
+        // 记录数据
+        state.components.push({id, x, y, el});
+        makeDraggable(el);
+    }
+
+    // --- 核心逻辑：连线 (Wiring) ---
+    function startWiring(e, pinEl) {
+        e.stopPropagation(); // 防止触发节点拖动
+        state.wiring = true;
+        const rect = pinEl.getBoundingClientRect();
+        // 计算考虑到缩放和偏移的坐标
+        const x = (rect.left + rect.width/2 - state.offset.x) / state.scale;
+        const y = (rect.top + rect.height/2 - state.offset.y) / state.scale;
+
+        state.startPin = {
+            el: pinEl,
+            x: x, 
+            y: y,
+            id: pinEl.dataset.pinId,
+            type: pinEl.dataset.type,
+            name: pinEl.dataset.pinName,
+            node: pinEl.dataset.nodeName
+        };
+
+        ghostWire.style.display = 'block';
+        statusBar.innerText = `Wiring... connecting ${state.startPin.name}`;
+    }
+
+    function endWiring(e, targetPinEl) {
+        e.stopPropagation();
+        if(!state.wiring || !state.startPin) return;
+
+        // 验证：不能连接自己，也不能连接同一个节点
+        const startId = state.startPin.id;
+        const endId = targetPinEl.dataset.pinId;
+        
+        if(startId !== endId && startId.split('_')[0] !== endId.split('_')[0]) {
+            // 创建连接
+            state.connections.push({
+                from: startId,
+                to: endId,
+                type: state.startPin.type
+            });
+            renderConnections();
+            generateCode();
+            statusBar.innerText = "Connected!";
+        }
+
+        stopWiring();
+    }
+
+    function stopWiring() {
+        state.wiring = false;
+        state.startPin = null;
+        ghostWire.style.display = 'none';
+        statusBar.innerText = "Ready";
+    }
+
+    // 鼠标移动处理 (连线预览 + 画布拖拽)
+    window.addEventListener('mousemove', (e) => {
+        // 更新坐标显示
+        const rawX = (e.clientX - state.offset.x) / state.scale;
+        const rawY = (e.clientY - state.offset.y) / state.scale;
+        document.getElementById('coords').innerText = `X: ${Math.round(rawX)}, Y: ${Math.round(rawY)}`;
+
+        // 1. 连线中
+        if(state.wiring) {
+            const startX = state.startPin.x;
+            const startY = state.startPin.y;
+            const endX = rawX;
+            const endY = rawY;
+            
+            // 贝塞尔曲线
+            const cp1x = startX + (endX - startX) * 0.5;
+            const d = `M ${startX} ${startY} C ${cp1x} ${startY}, ${cp1x} ${endY}, ${endX} ${endY}`;
+            ghostWire.setAttribute('d', d);
+        }
+
+        // 2. 画布平移中
+        if(state.panning) {
+            state.offset.x += e.clientX - state.panStart.x;
+            state.offset.y += e.clientY - state.panStart.y;
+            state.panStart = {x: e.clientX, y: e.clientY};
+            updateCanvasTransform();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if(state.wiring) stopWiring();
+        state.panning = false;
+        viewport.style.cursor = 'default';
+    });
+
+    // --- 渲染连线 ---
+    function renderConnections() {
+        svgLayer.innerHTML = ''; // 清空重绘
+        
+        state.connections.forEach((conn, index) => {
+            const el1 = document.querySelector(`[data-pin-id="${conn.from}"]`);
+            const el2 = document.querySelector(`[data-pin-id="${conn.to}"]`);
+            if(!el1 || !el2) return;
+
+            const r1 = el1.getBoundingClientRect();
+            const r2 = el2.getBoundingClientRect();
+
+            // 转换坐标
+            const x1 = (r1.left + r1.width/2 - state.offset.x) / state.scale;
+            const y1 = (r1.top + r1.height/2 - state.offset.y) / state.scale;
+            const x2 = (r2.left + r2.width/2 - state.offset.x) / state.scale;
+            const y2 = (r2.top + r2.height/2 - state.offset.y) / state.scale;
+
+            // 智能曲线
+            const dist = Math.abs(x2 - x1);
+            const cpOffset = Math.max(dist * 0.5, 50);
+            
+            // 根据引脚方向调整控制点 (这里简化假设都在两侧)
+            const d = `M ${x1} ${y1} C ${x1 + (x1<x2?cpOffset:-cpOffset)} ${y1}, ${x2 + (x2>x1?-cpOffset:cpOffset)} ${y2}, ${x2} ${y2}`;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('class', 'wire-path');
+            
+            // 颜色处理
+            let color = '#aaa';
+            if(conn.type === 'pwr') color = '#ff6b6b';
+            if(conn.type === 'gnd') color = '#888';
+            path.style.stroke = color;
+
+            // 右键删除连线
+            path.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                if(confirm('Disconnect this wire?')) {
+                    state.connections.splice(index, 1);
+                    renderConnections();
+                    generateCode();
+                }
+            });
+
+            svgLayer.appendChild(path);
+        });
+    }
+
+    // --- 拖拽节点逻辑 ---
+    function makeDraggable(el) {
+        const header = el.querySelector('.node-header');
+        let isDragging = false;
+        let startPos = {x:0, y:0};
+
+        header.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            // 获取当前 style left/top (去除 px)
+            const currX = parseFloat(el.style.left);
+            const currY = parseFloat(el.style.top);
+            startPos = { x: e.clientX, y: e.clientY, elX: currX, elY: currY };
+            el.classList.add('selected');
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if(!isDragging) return;
+            const dx = (e.clientX - startPos.x) / state.scale; // 考虑缩放
+            const dy = (e.clientY - startPos.y) / state.scale;
+            
+            el.style.left = (startPos.elX + dx) + 'px';
+            el.style.top = (startPos.elY + dy) + 'px';
+            renderConnections(); // 实时重绘连线
+        });
+
+        window.addEventListener('mouseup', () => {
+            if(isDragging) {
+                isDragging = false;
+                el.classList.remove('selected');
+            }
+        });
+    }
+
+    // --- 辅助功能 ---
+    function removeNode(id) {
+        const el = document.getElementById(id);
+        if(el) el.remove();
+        // 移除相关连线
+        state.connections = state.connections.filter(c => !c.from.startsWith(id) && !c.to.startsWith(id));
+        renderConnections();
+        generateCode();
+    }
+
+    function zoom(amount) {
+        state.scale = Math.max(0.5, Math.min(2.0, state.scale + amount));
+        updateCanvasTransform();
+    }
+
+    function updateCanvasTransform() {
+        canvas.style.transform = `translate(${state.offset.x}px, ${state.offset.y}px) scale(${state.scale})`;
+        renderConnections(); // 缩放后线的位置需要重新计算吗？其实不需要，因为SVG在Layer内，但StrokeWidth可能需要调整。
+        // 为了简单，直接重绘
+    }
+
+    // 画布平移 (空格+拖拽 或 中键)
+    viewport.addEventListener('mousedown', (e) => {
+        if(e.button === 1 || (e.button === 0 && e.target === viewport)) { // 中键或点击空白
+            state.panning = true;
+            state.panStart = {x: e.clientX, y: e.clientY};
+            viewport.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+
+    // --- 代码生成器 (简单版) ---
+    function generateCode() {
+        let code = "// Auto-generated Configuration\n\n";
+        code += "#include \"main.h\"\n\n";
+        
+        state.connections.forEach(c => {
+            const fromEl = document.querySelector(`[data-pin-id="${c.from}"]`);
+            const toEl = document.querySelector(`[data-pin-id="${c.to}"]`);
+            if(!fromEl || !toEl) return;
+
+            const mcuPin = fromEl.dataset.nodeName.includes('STM32') ? fromEl : 
+                           (toEl.dataset.nodeName.includes('STM32') ? toEl : null);
+            const periphPin = mcuPin === fromEl ? toEl : fromEl;
+
+            if(mcuPin) {
+                code += `// Connect ${periphPin.dataset.nodeName} ${periphPin.dataset.pinName} to MCU\n`;
+                code += `#define ${periphPin.dataset.nodeName.toUpperCase()}_${periphPin.dataset.pinName.toUpperCase()}_PIN  ${mcuPin.dataset.pinName}\n`;
+                code += `#define ${periphPin.dataset.nodeName.toUpperCase()}_PORT  GPIOA  // Simplified\n\n`;
+            }
+        });
+
+        code += "void System_Config() {\n";
+        state.connections.forEach(c => {
+             // 简单的逻辑生成
+             if(c.type === 'comm') {
+                 code += "  // Init I2C/UART...\n";
+             }
+        });
+        code += "}";
+        
+        codePreview.value = code;
+    }
+
+    // --- 拖放组件到画布 ---
+    // HTML5 Drag & Drop API
+    document.querySelectorAll('.comp-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('type', item.dataset.type);
+        });
+    });
+
+    viewport.addEventListener('dragover', (e) => e.preventDefault());
+    viewport.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('type');
+        const x = (e.clientX - viewport.getBoundingClientRect().left - state.offset.x) / state.scale;
+        const y = (e.clientY - viewport.getBoundingClientRect().top - state.offset.y) / state.scale;
+        createComponent(type, x, y);
+    });
+
+    // 初始化演示数据
+    setTimeout(() => {
+        createComponent('stm32', 100, 100);
+        createComponent('oled', 400, 200);
+    }, 100);
+
+</script>
+</body>
+</html>

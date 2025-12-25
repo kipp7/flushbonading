@@ -1,0 +1,170 @@
+MS 01 Super Milestone
+
+Super Milestone ID: MS 01
+Name: M2 foundation hardening and enablement
+
+Objective
+Deliver a hardened offline first PinForge foundation that is spec driven and ready for M2 scale.
+This milestone establishes schema versioning, diagnostics, settings, improved data tooling, constraints editing, planning intelligence checks, canvas usability upgrades, and expanded exports and codegen.
+
+Scope
+1. Implement the approved OpenSpec change: openspec changes update pinforge m2 foundation
+2. Reconcile existing OpenSpec changes add pinforge core and add pinforge embedded devtools into baseline specs and archive if appropriate
+3. Complete tasks 001 through 200 in docs TASKS 240, with pragmatic consolidation where functionality already exists
+
+Anti Goals
+1. No cloud sync, accounts, or collaboration
+2. No online vendor APIs or required network access
+3. No HAL or LL code generation
+4. No PDF parsing pipeline
+5. No full schematic, netlist, or PCB export
+6. No plugin system or scripting engine beyond what is explicitly specified
+7. No unrelated refactors or rewrites
+
+Primary Dependencies and Toolchain
+1. Node LTS, npm, TypeScript, React, Vite, Tauri, Rust stable
+2. Keep runtime dependencies minimal
+3. Any new dependency must be documented in TECH STACK and justified in the change design
+
+OpenSpec References
+1. Baseline specs (truth)
+   openspec specs pin planner spec md
+   openspec specs catalog import spec md
+   openspec specs pin constraints spec md
+   openspec specs hardware export spec md
+   openspec specs codegen spl spec md
+2. Active approved change
+   openspec changes update pinforge m2 foundation
+
+Acceptance Criteria Global
+1. OpenSpec
+   a. openspec validate update pinforge m2 foundation strict passes
+   b. Any additional changes created during implementation also validate strict
+2. Offline first
+   a. npm run check offline passes
+   b. No required network calls at runtime
+3. Quality gates
+   a. npm run lint passes
+   b. npm run check allocator passes
+   c. npm run build passes
+4. UX and correctness
+   a. No regression in current MVP flow: select MCU, select sensors, allocate, conflicts, locks, wiring, exports, save and load
+   b. New features match their OpenSpec scenarios
+
+Validation Commands
+1. npm run lint
+2. npm run check allocator
+3. npm run check offline
+4. npm run build
+5. openspec validate update pinforge m2 foundation strict
+
+Deliverables
+1. Updated code implementing all MS 01 scope
+2. Updated docs including TECH STACK and ARCHITECTURE
+3. Updated OpenSpec tasks checklists marked complete for finished work
+4. Updated regression checklist and manual QA notes
+
+Batch Plan
+
+Batch 01 Governance and Spec Truth
+Description
+Establish reproducible build docs, stable architecture boundaries, and consistent specs as the source of truth.
+Inputs
+Current repository code and existing OpenSpec changes
+Outputs
+TECH STACK and ARCHITECTURE docs, validated baseline specs, archival plan executed if applicable
+OpenSpec Ref
+openspec specs plus openspec changes update pinforge m2 foundation section 1 and section 6
+Acceptance Criteria
+1. Baseline specs exist and reflect current shipped behavior
+2. Any archived change is moved to openspec changes archive and validation remains green
+3. TECH STACK and ARCHITECTURE describe module boundaries and toolchain versions
+
+Batch 02 App Shell Foundation
+Description
+Add error boundary, toasts, settings persistence, About, and Diagnostics per spec.
+Inputs
+Existing UI and copy strings
+Outputs
+Stable shell components, persisted settings, diagnostics export
+OpenSpec Ref
+openspec changes update pinforge m2 foundation specs app shell spec md
+Acceptance Criteria
+1. Error boundary fallback is reachable and provides diagnostics export
+2. Toasts show for import, export, save, load success and failure
+3. Language setting persists across reload
+
+Batch 03 Data Tooling and Catalog Pipeline
+Description
+Version schemas, improve validation, add preview and summary, and add catalog export and persistence.
+Inputs
+Existing catalog parsers and templates
+Outputs
+Schema versioned templates, preview UI, merge replace toggles, summary, catalog export
+OpenSpec Ref
+openspec specs catalog import spec md plus openspec changes update pinforge m2 foundation specs catalog import spec md
+Acceptance Criteria
+1. Import rejects incompatible schema version with a clear message
+2. Preview shows counts and errors before apply
+3. Merge replace semantics are explicit and documented
+4. Catalog export produces valid JSON and CSV with schema metadata
+
+Batch 04 Constraints Editor and Overrides
+Description
+Implement constraint editor UI, soft warnings, and per project overrides.
+Inputs
+Existing constraints data and allocator constraint support
+Outputs
+Editable constraints, override storage, warning presentation
+OpenSpec Ref
+openspec specs pin constraints spec md plus openspec changes update pinforge m2 foundation specs pin constraints spec md
+Acceptance Criteria
+1. Disabling a hard rule changes allocation behavior as expected
+2. Soft constraints emit warnings without blocking allocation
+3. Project level overrides persist in the project file
+
+Batch 05 Planning Intelligence
+Description
+Add address and bus capacity checks and capability mismatch surfacing with deterministic allocator behavior.
+Inputs
+Sensor models and allocator outputs
+Outputs
+Warnings and conflicts for intelligence rules, deterministic ordering, debug export
+OpenSpec Ref
+openspec changes update pinforge m2 foundation specs pin planner spec md
+Acceptance Criteria
+1. I2C address collisions show a warning with details
+2. UART exclusivity enforces single device per bus
+3. Allocator outputs are deterministic given same inputs
+
+Batch 06 Canvas and UX Upgrades
+Description
+Add zoom and pan, hover focus, orientation controls, and improved auto placement while keeping wires aligned.
+Inputs
+Existing canvas and wiring rendering
+Outputs
+Zoom pan controls, interaction polish, retained orientation
+OpenSpec Ref
+openspec changes update pinforge m2 foundation specs pin planner spec md
+Acceptance Criteria
+1. Zoom pan does not break wire alignment
+2. Orientation changes persist after save and load
+3. Hover focus improves traceability of pins and wires
+
+Batch 07 Exports and Codegen Expansion
+Description
+Add hardware CSV exports, export bundle packaging, and extended SPL codegen helpers.
+Inputs
+Existing export and codegen modules
+Outputs
+CSV outputs, bundle export, enhanced SPL templates
+OpenSpec Ref
+openspec specs hardware export spec md, openspec specs codegen spl spec md, and corresponding MS 01 change deltas
+Acceptance Criteria
+1. Hardware CSV exports generate locally and match the current allocation
+2. Export bundle includes consistent naming and metadata
+3. SPL exports include helper stubs and no HAL or LL content
+
+Reporting Rule
+One report only after all batches complete, including validation outputs and a list of key files changed.
+

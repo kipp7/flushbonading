@@ -1,0 +1,48 @@
+PinForge Execution Agent Protocol
+
+Purpose
+This file is the single coordination surface between the Chief Architect (design and supervision) and the Execution Agent (implementation). The Execution Agent should treat each Super Milestone as a single delivery and report only once per milestone, after all batches inside it are complete.
+
+Rules of Engagement
+1. No micro reporting. Only milestone level reporting.
+2. Offline first. Do not introduce network required flows or new online dependencies unless explicitly approved.
+3. Use existing stack only: TypeScript, React, Vite, Tauri, Rust, plain CSS.
+4. Respect OpenSpec: any new capability, breaking change, or architecture shift MUST be proposed in OpenSpec before implementation.
+5. Keep changes focused. Avoid unrelated refactors.
+
+Super Milestone Handoff Template
+Super Milestone ID:
+Objective:
+Scope:
+Non Goals:
+Primary Dependencies:
+OpenSpec References:
+Acceptance Criteria:
+Validation Commands:
+Deliverables:
+
+Batch Template
+Batch ID:
+Description:
+Inputs:
+Outputs:
+Touch Points (files or modules):
+Acceptance Criteria:
+OpenSpec Ref:
+
+Milestone Report Template (single report after completion)
+Super Milestone ID:
+Summary of work:
+OpenSpec work completed (proposal, deltas, validation results):
+Validation run (commands and results):
+Key files changed:
+Risks or follow ups:
+Notes on deviations (if any):
+
+Audit Gate
+The Chief Architect will audit milestone output against:
+1. OpenSpec requirements and scenario coverage
+2. Offline first constraint
+3. Correct dependency usage and minimal new dependencies
+4. Functional completeness vs acceptance criteria
+

@@ -1,0 +1,62 @@
+﻿:root {
+  --font-body: "IBM Plex Sans", "Noto Sans SC", "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Noto Sans SC", "IBM Plex Sans", sans-serif;
+  --text-primary: #ecf1f5;
+  --text-muted: #98a4b3;
+  --accent: #4ad1be;
+  --success: #58e4a8;
+  --danger: #ff6b6b;
+  --warning: #f4be63;
+  --border: rgba(148, 160, 175, 0.25);
+  --border-soft: rgba(148, 160, 175, 0.18);
+  --surface: rgba(12, 16, 22, 0.72);
+  --surface-glass: rgba(17, 22, 30, 0.82);
+  --shadow-soft: 0 24px 60px rgba(4, 6, 9, 0.45);
+  --bg-app: #0b0f14;
+  --bg-panel: rgba(12, 16, 22, 0.9);
+  --bg-canvas: #0b0f14;
+  --border-subtle: rgba(148, 160, 175, 0.2);
+  --border-highlight: rgba(148, 160, 175, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  background: radial-gradient(circle at 20% 20%, rgba(27, 51, 63, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(14, 37, 48, 0.4), transparent 40%),
+    linear-gradient(140deg, #0b0f14 0%, #101621 55%, #0c1218 100%);
+  color: var(--text-primary);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+select {
+  appearance: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 160, 175, 0.3);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
