@@ -4,11 +4,17 @@ Purpose
 This file is the single coordination surface between the Chief Architect (design and supervision) and the Execution Agent (implementation). The Execution Agent should treat each Super Milestone as a single delivery and report only once per milestone, after all batches inside it are complete.
 
 Rules of Engagement
-1. No micro reporting. Only milestone level reporting.
-2. Offline first. Do not introduce network required flows or new online dependencies unless explicitly approved.
-3. Use existing stack only: TypeScript, React, Vite, Tauri, Rust, plain CSS.
-4. Respect OpenSpec: any new capability, breaking change, or architecture shift MUST be proposed in OpenSpec before implementation.
-5. Keep changes focused. Avoid unrelated refactors.
+1. Before writing any code, read and obey: `AGENTS.md` and `openspec/AGENTS.md`.
+2. No micro reporting. Only milestone level reporting.
+3. Offline first. Do not introduce network required flows or new online dependencies unless explicitly approved.
+4. Use existing stack only: TypeScript, React, Vite, Tauri, Rust, plain CSS.
+5. Respect OpenSpec: any new capability, breaking change, or architecture shift MUST be proposed in OpenSpec before implementation.
+6. Keep changes focused. Avoid unrelated refactors.
+7. If blocked, do not stop. Produce a troubleshooting checklist plus Plan A (conservative) and Plan B (aggressive).
+8. Before claiming any batch is done, run the self-check triad:
+   a. Static checks: `npm run lint` and `npm run build`
+   b. Key-path checks: `npm run check:allocator` and `npm run check:offline`
+   c. Update task status files: mark checkboxes complete in the relevant `openspec/changes/<id>/tasks.md` and `docs/TASKS-240.md` (or the milestone-specific task file)
 
 Super Milestone Handoff Template
 Super Milestone ID:
@@ -39,10 +45,19 @@ Key files changed:
 Risks or follow ups:
 Notes on deviations (if any):
 
+Heartbeat Log Format
+Include heartbeat lines inside the final milestone report, one per completed batch:
+Task [xx/xx] Batch Done: <batch-id> <short label>
+
+Closed-Loop Return (Mandatory)
+At the end of the milestone report, include a final code block titled "STRICT GOVERNANCE AUDIT REQUEST" that the user can copy back to the Chief Architect. The content MUST request:
+1. Gap analysis versus OpenSpec scenarios and acceptance criteria
+2. Binary decisions: accept or reject, with explicit deviations if rejected
+3. Update of the Project Supervision Memory status
+
 Audit Gate
 The Chief Architect will audit milestone output against:
 1. OpenSpec requirements and scenario coverage
 2. Offline first constraint
 3. Correct dependency usage and minimal new dependencies
 4. Functional completeness vs acceptance criteria
-

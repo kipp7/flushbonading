@@ -7,13 +7,16 @@ Local desktop web app for STM32 pin planning and sensor fit. This MVP uses demo 
 - MCU selector (F1/F4/G0/H7 demo subsets)
 - Sensor library (I2C/SPI/UART/ADC/PWM/1-Wire)
 - Auto allocation + conflict reporting
+- Canvas zoom/pan + hover highlight (pins/wires)
 - Export `pinmap.json` and `pinmap.csv`
 - Project save/load (`pinforge_project.json`)
 - Custom sensor templates
 - Manual pin locks per signal
-- Export SPL starter code (`*_spl.c`) with sensor placeholders
+- Export SPL starter code (`*_spl.c`) with sensor placeholders (speed preset + I2C helper stubs)
 - Critical pin constraints (SWD/BOOT/OSC) + conflict details
 - Hardware export (`*_hardware.json`) with pin usage, wiring list, BOM summary
+- Hardware CSV exports (pin usage / wiring / BOM)
+- Export bundle (`*_bundle.zip`) with `manifest.json` + selected outputs
 - Offline catalog import templates (MCU/Sensor/Constraint CSV or JSON)
 
 ## Run (Desktop)
